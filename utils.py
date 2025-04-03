@@ -61,7 +61,7 @@ def load_segment_target(fname):
         'im': im_tensor,
     }
 
-#if __name__ == "__main__":
+if __name__ == "__main__":
 #    load_segment_target("test_images/land_cover.png")
-#    parent_folder = "./satlaspretrain_dataset_labels_static_0000/static/"  # Replace with your folder path
-#    delete_folders_without_land_cover(parent_folder)
+    parent_folder = "./satlaspretrain_dataset_labels_static_0002/static/"  # Replace with your folder path
+    delete_folders_without_land_cover(parent_folder)
