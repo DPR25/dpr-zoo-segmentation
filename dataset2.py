@@ -7,7 +7,7 @@ from matplotlib.patches import Patch
 from torch.utils.data import Dataset
 import cv2
 
-class SatlasSentinel2Dataset(Dataset):
+class SatlasSentinel2DatasetV2(Dataset):
     CATEGORY_MAP = {
         0: "background",
         1: "water",
@@ -66,6 +66,18 @@ class SatlasSentinel2Dataset(Dataset):
 
                 # Convert category flags to booleans
                 flags = list(map(lambda x: x == "True", flags))
+
+                # Check for the presence of all the required band paths
+                all_bands_exist = True
+                for band in self.bands:
+                    band_path = image_path.replace("band", band)
+                    if not os.path.exists(band_path):
+                        all_bands_exist = False
+                        break
+
+                if not all_bands_exist:
+                    print(f"Removed {image_path}")
+                    continue  # Skip if any required band is missing
 
                 # Filter by categories
                 if self.valid_classes and not any(idx for idx in self.valid_classes):

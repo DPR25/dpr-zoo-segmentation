@@ -96,15 +96,62 @@ def plot_sample(image, mask, figsize=(12, 6)):
     plt.show()
 
 
+def modify_input_bands(model, selected_bands):
+    """
+    Modify the first conv layer of the model to accept a new set of bands (channels).
+
+    Args:
+        model (nn.Module): The model with a .backbone.features[0][0] Conv2d layer.
+        selected_bands (list of str): List of bands to retain (e.g. ["b4", "b3", "b2", "b08"]).
+    """
+
+    BAND_ORDER = ["b04", "b03", "b02", "b05", "b06", "b07", "b08", "b11", "b12"]
+
+    # Validate bands
+    for band in selected_bands:
+        if band not in BAND_ORDER:
+            raise ValueError(f"Band '{band}' is not in known band order: {BAND_ORDER}")
+
+    # Get indices of selected bands
+    band_indices = [BAND_ORDER.index(band) for band in selected_bands]
+
+    # Locate the first conv layer
+    first_conv = model.backbone.backbone.features[0][0]
+    old_weights = first_conv.weight.data  # shape: (out_channels, in_channels, kH, kW)
+
+    # Create new Conv2d layer
+    new_conv = torch.nn.Conv2d(
+        in_channels=len(selected_bands),
+        out_channels=first_conv.out_channels,
+        kernel_size=first_conv.kernel_size,
+        stride=first_conv.stride,
+        padding=first_conv.padding,
+        bias=first_conv.bias is not None
+    )
+
+    # Copy selected channel weights
+    new_conv.weight.data = old_weights[:, band_indices, :, :].clone()
+
+    # Copy bias if exists
+    if first_conv.bias is not None:
+        new_conv.bias.data = first_conv.bias.data.clone()
+
+    # Replace conv layer in model
+    model.backbone.backbone.features[0][0] = new_conv
+
 def train_segmentation_model():
 
     device = 'cuda'
 
     weights_manager = satlaspretrain_models.Weights()
-    model = weights_manager.get_pretrained_model("Sentinel2_SwinB_SI_RGB", fpn=True, head=satlaspretrain_models.Head.SEGMENT, num_categories=2, device='cuda')
-    
+    model = weights_manager.get_pretrained_model("Sentinel2_SwinB_SI_MS", fpn=True, head=satlaspretrain_models.Head.SEGMENT, num_categories=2, device='cuda')
+
     train_dataset = AmazonRainforestDataset("data/AMAZON/Training/image", "data/AMAZON/Training/label")
     val_dataset = AmazonRainforestDataset("data/AMAZON/Validation/images", "data/AMAZON/Validation/masks")
+
+    selected_bands = ["b04", "b03", "b02"]
+
+    modify_input_bands(model, selected_bands)
 
     model = model.to(device)
 
@@ -270,4 +317,5 @@ def predict_segmentation_single_image(image_path):
     plt.tight_layout()
     plt.show()
 
-predict_segmentation_single_image("data/test2.png")
+#predict_segmentation_single_image("data/test2.png")
+train_segmentation_model()
